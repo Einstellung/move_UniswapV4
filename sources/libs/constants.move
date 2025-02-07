@@ -5,6 +5,7 @@ module libs::constants {
     const MAX_U32: u32 = 0xffffffff;
     const MAX_U64: u64 = 0xffffffffffffffff;
     const MAX_U128: u128 = 0xffffffffffffffffffffffffffffffff;
+    const MAX_U160: u256 = 0xffffffffffffffffffffffffffffffffffffffff;
     const MAX_U256: u256 = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 
     // Fixed point number constants
@@ -31,6 +32,10 @@ module libs::constants {
 
     public fun get_max_u128(): u128 {
         MAX_U128
+    }
+
+    public fun get_max_u160(): u256 {
+        MAX_U160
     }
 
     public fun get_max_u256(): u256 {
