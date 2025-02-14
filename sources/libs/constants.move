@@ -18,6 +18,20 @@ module libs::constants {
     const RESOLUTION_128: u8 = 128;
     const Q128: u256 = 0x100000000000000000000000000000000;
 
+    /// Constants for tick range
+    const TICK_OFFSET: u32 = 887272;  // This is the offset we use to simulate negative ticks
+    const MIN_TICK: u32 = 0;     // Represents -887272 in original Solidity code
+    const MAX_TICK: u32 = 1774544;  // Represents 887272 in original Solidity code
+
+    /// @notice the swap fee is represented in hundredths of a bip, so the max is 100%
+    /// @dev the swap fee is the total fee on a swap, including both LP and Protocol fee
+    const MAX_SWAP_FEE: u32 = 1000000; // 1e6
+
+    /// Constants for sqrt price range
+    const MIN_SQRT_PRICE: u256 = 4295128739;
+    const TICK_OFFSET_SQRT_PRICE: u256 = 79228162514264337593543950336;
+    const MAX_SQRT_PRICE: u256 = 1461446703485210103287273052203988822378723970342;
+
     public fun get_max_u8(): u8 {
         MAX_U8
     }
@@ -60,5 +74,33 @@ module libs::constants {
 
     public fun get_resolution_128(): u8 {
         RESOLUTION_128
+    }
+
+    public fun get_tick_offset(): u32 {
+        TICK_OFFSET
+    }
+
+    public fun get_min_tick(): u32 {
+        MIN_TICK
+    }
+
+    public fun get_max_tick(): u32 {
+        MAX_TICK
+    }
+
+    public fun get_max_swap_fee(): u32 {
+        MAX_SWAP_FEE
+    }
+
+    public fun get_min_sqrt_price(): u256 {
+        MIN_SQRT_PRICE
+    }
+
+    public fun get_tick_0_sqrt_price(): u256 {
+        TICK_OFFSET_SQRT_PRICE
+    }
+
+    public fun get_max_sqrt_price(): u256 {
+        MAX_SQRT_PRICE
     }
 }

@@ -1,14 +1,11 @@
 module libs::swap_math {
     use std::u256;
     use libs::sqrt_price_math;
+    use libs::constants;
 
     // Error codes
     const EINVALID_SWAP_FEE: u64 = 1;
     // const EINVALID_AMOUNT: u64 = 2;
-
-    /// @notice the swap fee is represented in hundredths of a bip, so the max is 100%
-    /// @dev the swap fee is the total fee on a swap, including both LP and Protocol fee
-    const MAX_SWAP_FEE: u32 = 1000000; // 1e6
 
     /// @notice Computes the sqrt price target for the next swap step
     /// @param zero_for_one The direction of the swap, true for currency0 to currency1, false for currency1 to currency0
@@ -60,7 +57,7 @@ module libs::swap_math {
         exact_in: bool,
         fee_pips: u32
     ): (u256, u256, u256, u256) {
-        assert!(fee_pips <= MAX_SWAP_FEE, EINVALID_SWAP_FEE);
+        assert!(fee_pips <= constants::get_max_swap_fee(), EINVALID_SWAP_FEE);
 
         let zero_for_one = sqrt_price_current_x96 >= sqrt_price_target_x96;
 
@@ -71,7 +68,7 @@ module libs::swap_math {
 
         if (exact_in) {
             // after deducting the fee, the remaining amount is less than the original amount. amount_remaining_less_fee is the actual amount to be swapped
-            let amount_remaining_less_fee = (amount_remaining * ((MAX_SWAP_FEE - fee_pips) as u256)) / (MAX_SWAP_FEE as u256);
+            let amount_remaining_less_fee = (amount_remaining * ((constants::get_max_swap_fee() - fee_pips) as u256)) / (constants::get_max_swap_fee() as u256);
             
             amount_in = if (zero_for_one) {
                 sqrt_price_math::get_amount0_delta(
@@ -94,12 +91,12 @@ module libs::swap_math {
             // fee_amount comes from A-a(A is total amount, a is effictive swap amount)
             if (amount_remaining_less_fee >= amount_in) {
                 sqrt_price_next_x96 = sqrt_price_target_x96;
-                fee_amount = if (fee_pips == MAX_SWAP_FEE) {
+                fee_amount = if (fee_pips == constants::get_max_swap_fee()) {
                     amount_in
                 } else {
                     // a + A*(fee_pips/MAX_SWAP_FEE) = A, A=a*(MAX_SWAP_FEE/(MAX_SWAP_FEE-fee_pips))
                     // fee_amount=A-a= a*(fee_pips/(MAX_SWAP_FEE-fee_pips))
-                    let denominator = MAX_SWAP_FEE - fee_pips;
+                    let denominator = constants::get_max_swap_fee() - fee_pips;
                     u256::divide_and_round_up(amount_in * (fee_pips as u256), (denominator as u256))
                 };
             } else {
@@ -177,8 +174,8 @@ module libs::swap_math {
             };
 
             // fee_pips cannot be MAX_SWAP_FEE for exact out
-            assert!(fee_pips < MAX_SWAP_FEE, EINVALID_SWAP_FEE);
-            let denominator = MAX_SWAP_FEE - fee_pips;
+            assert!(fee_pips < constants::get_max_swap_fee(), EINVALID_SWAP_FEE);
+            let denominator = constants::get_max_swap_fee() - fee_pips;
             fee_amount = u256::divide_and_round_up(amount_in * (fee_pips as u256), (denominator as u256));
         };
 
@@ -274,7 +271,7 @@ module libs::swap_math {
         let sqrt_price_target = 2000000 << 96;
         let liquidity = 1000000;
         let amount_remaining = 1000000;
-        let fee_pips = MAX_SWAP_FEE + 1;
+        let fee_pips = constants::get_max_swap_fee() + 1;
 
         compute_swap_step(
             sqrt_price_current,
@@ -360,7 +357,8 @@ module libs::swap_math {
     #[test]
     fun test_compute_swap_step_exact_out_fully_received() {
         let price = 1 << 96;  // SQRT_PRICE_1_1
-        let price_target = (10000 * (1 << 96)) / 100;  // SQRT_PRICE_10000_100
+        // let price_target = (10000 * (1 << 96)) / 100;  // SQRT_PRICE_10000_100
+        let price_target = (10000 * (1 << 96)) / 1000;  // SQRT_PRICE_10000_100
         let liquidity = 2000000000000000000;  // 2 ether
         let amount_remaining = 1000000000000000000;  // 1 ether
         let fee_pips = 600;  // 0.06%

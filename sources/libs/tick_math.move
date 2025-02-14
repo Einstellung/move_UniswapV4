@@ -1,24 +1,15 @@
 module libs::tick_math {
     use libs::bit_math;
+    use libs::constants;
     use libs::constants::get_max_u256;
 
     /// Error codes
     const ERR_INVALID_TICK: u64 = 1;
     const ERR_INVALID_SQRT_PRICE: u64 = 2;
 
-    /// Constants for tick range
-    const TICK_OFFSET: u32 = 887272;  // This is the offset we use to simulate negative ticks
-    const MIN_TICK: u32 = 0;     // Represents -887272 in original Solidity code
-    const MAX_TICK: u32 = 1774544;  // Represents 887272 in original Solidity code
-
     /// Constants for tick spacing
     const MIN_TICK_SPACING: u32 = 1;
     const MAX_TICK_SPACING: u32 = 32767;
-
-    /// Constants for sqrt price range
-    const MIN_SQRT_PRICE: u256 = 4295128739;
-    const TICK_0_SQRT_PRICE: u256 = 79228162514264337593543950336;
-    const MAX_SQRT_PRICE: u256 = 1461446703485210103287273052203988822378723970342;
 
     // Constants for price calculation
     const PRICE_CONST_1: u256 = 0xfffcb933bd6fad37aa2d162d1a594001u256;
@@ -44,12 +35,12 @@ module libs::tick_math {
 
     /// @notice Given a tickSpacing, compute the maximum usable tick
     public(package) fun max_usable_tick(tick_spacing: u32): u32 {
-        (MAX_TICK / tick_spacing) * tick_spacing
+        (constants::get_max_tick() / tick_spacing) * tick_spacing
     }
 
     /// @notice Given a tickSpacing, compute the minimum usable tick
     public(package) fun min_usable_tick(tick_spacing: u32): u32 {
-        (MIN_TICK / tick_spacing) * tick_spacing
+        (constants::get_min_tick() / tick_spacing) * tick_spacing
     }
 
     /// Convert an offset tick to a real tick
@@ -58,19 +49,19 @@ module libs::tick_math {
     /// - abs_real_tick is the absolute value of the real tick
     /// - real_tick_signal is true for positive tick, false for negative tick
     public(package) fun convert_to_real_tick(tick: u32): (u32, bool) {
-        if (tick >= TICK_OFFSET) {
-            (tick - TICK_OFFSET, true)  // Positive tick
+        if (tick >= constants::get_tick_offset()) {
+            (tick - constants::get_tick_offset(), true)  // Positive tick
         } else {
-            (TICK_OFFSET - tick, false)  // Negative tick
+            (constants::get_tick_offset() - tick, false)  // Negative tick
         }
     }
 
     /// Convert a real tick to an offset tick (add offset)
     public(package) fun convert_from_real_tick(abs_real_tick: u32, real_tick_signal: bool): u32 {
         if (real_tick_signal) {
-            abs_real_tick + TICK_OFFSET
+            abs_real_tick + constants::get_tick_offset()
         } else {
-            TICK_OFFSET - abs_real_tick
+            constants::get_tick_offset() - abs_real_tick
         }
     }
 
@@ -79,7 +70,7 @@ module libs::tick_math {
     /// @param tick The input tick for the above formula
     /// @return sqrtPriceX96 A Fixed point Q64.96 number representing the sqrt of the price
     public fun get_sqrt_price_at_tick(tick: u32): u256 {
-        assert!(tick <= MAX_TICK, ERR_INVALID_TICK);
+        assert!(tick <= constants::get_max_tick(), ERR_INVALID_TICK);
         
         // Convert the offset tick to real tick for calculation
         let (abs_real_tick, real_tick_signal) = convert_to_real_tick(tick);
@@ -136,14 +127,14 @@ module libs::tick_math {
     public fun get_tick_at_sqrt_price(sqrtPriceX96: u256): u32 {
         // Validate the price is within bounds
         assert!(
-            sqrtPriceX96 >= MIN_SQRT_PRICE && sqrtPriceX96 < MAX_SQRT_PRICE,
+            sqrtPriceX96 >= constants::get_min_sqrt_price() && sqrtPriceX96 < constants::get_max_sqrt_price(),
             ERR_INVALID_SQRT_PRICE
         );
 
         // Determine the sign of the real tick.
         // If sqrtPriceX96 is greater than price_at_zero, the tick is positive
         // Otherwise, the tick is negative
-        let real_tick_signal = sqrtPriceX96 >= TICK_0_SQRT_PRICE;
+        let real_tick_signal = sqrtPriceX96 >= constants::get_tick_0_sqrt_price();
 
         // orignal sqrtPriceX96 is Q64.96 format (u160), we need to enhace it's precision (especially the decimal part). Now, we let 64 bit for integer part, and 96+32 bit for decimal part
         let price = sqrtPriceX96 << 32;
@@ -278,97 +269,99 @@ module libs::tick_math {
         };
 
         let abs_choose_tick = if (get_sqrt_price_at_tick(abs_tick_high) <= sqrtPriceX96) {
+            // If the price corresponding to the high estimated tick is less than or equal to the target price, choose the high estimate
             abs_tick_high
         } else {
+            // Otherwise, choose the low estimate
             abs_tick_low
         };
         
         let tick = if (real_tick_signal) {
-            abs_choose_tick + TICK_OFFSET
+            abs_choose_tick + constants::get_tick_offset()
         } else {
-            TICK_OFFSET - abs_choose_tick
+            constants::get_tick_offset() - abs_choose_tick
         };
         tick
     }
 
     /// Helper function to check if a tick is valid for a given tick spacing
     public fun is_valid_tick(tick: u32, tick_spacing: u32): bool {
-        let in_range = tick >= MIN_TICK && tick <= MAX_TICK;
+        let in_range = tick >= constants::get_min_tick() && tick <= constants::get_max_tick();
         in_range && (tick % tick_spacing == 0)
     }
 
     #[test]
     fun test_get_sqrt_price_at_tick() {
         // Test minimum tick (equivalent to -887272)
-        let price = get_sqrt_price_at_tick(MIN_TICK);
-        assert!(price == MIN_SQRT_PRICE, 0);
+        let price = get_sqrt_price_at_tick(constants::get_min_tick());
+        assert!(price == constants::get_min_sqrt_price(), 0);
 
         // Test maximum tick (equivalent to 887272)
-        let price = get_sqrt_price_at_tick(MAX_TICK);
-        assert!(price == MAX_SQRT_PRICE, 1);
+        let price = get_sqrt_price_at_tick(constants::get_max_tick());
+        assert!(price == constants::get_max_sqrt_price(), 1);
 
         // Test zero tick (equivalent to original tick 0)
-        let price = get_sqrt_price_at_tick(TICK_OFFSET);
-        assert!(price > MIN_SQRT_PRICE && price < MAX_SQRT_PRICE, 2);
+        let price = get_sqrt_price_at_tick(constants::get_tick_offset());
+        assert!(price > constants::get_min_sqrt_price() && price < constants::get_max_sqrt_price(), 2);
 
         // Test negative tick
-        let price = get_sqrt_price_at_tick(TICK_OFFSET - 100);
-        let price2 = get_sqrt_price_at_tick(TICK_OFFSET + 100);
+        let price = get_sqrt_price_at_tick(constants::get_tick_offset() - 100);
+        let price2 = get_sqrt_price_at_tick(constants::get_tick_offset() + 100);
         assert!(price < price2, 3); // Negative tick should give smaller price
     }
 
     #[test]
     #[expected_failure(abort_code = ERR_INVALID_TICK)]
     fun test_get_sqrt_price_at_tick_invalid() {
-        get_sqrt_price_at_tick(MAX_TICK + 1);
+        get_sqrt_price_at_tick(constants::get_max_tick() + 1);
     }
 
     #[test]
     fun test_get_tick_at_sqrt_price() {
         // Test minimum price
-        let tick = get_tick_at_sqrt_price(MIN_SQRT_PRICE);
-        assert!(tick == MIN_TICK, 0);
+        let tick = get_tick_at_sqrt_price(constants::get_min_sqrt_price());
+        assert!(tick == constants::get_min_tick(), 0);
 
         // // Test maximum price
-        let tick = get_tick_at_sqrt_price(MAX_SQRT_PRICE - 1);
-        assert!(tick == MAX_TICK, 1);
+        let tick = get_tick_at_sqrt_price(constants::get_max_sqrt_price() - 1);
+        assert!(tick == constants::get_max_tick(), 1);
 
         // Test middle price (around tick 0)
-        let tick = get_tick_at_sqrt_price(TICK_0_SQRT_PRICE);
-        assert!(tick == TICK_OFFSET, 2);
+        let tick = get_tick_at_sqrt_price(constants::get_tick_0_sqrt_price());
+        assert!(tick == constants::get_tick_offset(), 2);
     }
 
     #[test]
     #[expected_failure(abort_code = ERR_INVALID_SQRT_PRICE)]
     fun test_get_tick_at_sqrt_price_invalid() {
-        get_tick_at_sqrt_price(MAX_SQRT_PRICE);
+        get_tick_at_sqrt_price(constants::get_max_sqrt_price());
     }
 
     #[test]
     fun test_is_valid_tick() {
         assert!(is_valid_tick(0, 1), 0);
-        assert!(is_valid_tick(MAX_TICK, 1), 1);
-        assert!(!is_valid_tick(MAX_TICK + 1, 1), 2);
-        assert!(is_valid_tick(TICK_OFFSET, 1), 3); // Test tick 0
-        assert!(!is_valid_tick(TICK_OFFSET + 100, 10), 4); // Test positive tick
-        assert!(!is_valid_tick(TICK_OFFSET - 100, 10), 5); // Test negative tick
-        assert!(is_valid_tick(TICK_OFFSET, 2), 5);
+        assert!(is_valid_tick(constants::get_max_tick(), 1), 1);
+        assert!(!is_valid_tick(constants::get_max_tick() + 1, 1), 2);
+        assert!(is_valid_tick(constants::get_tick_offset(), 1), 3); // Test tick 0
+        assert!(!is_valid_tick(constants::get_tick_offset() + 100, 10), 4); // Test positive tick
+        assert!(!is_valid_tick(constants::get_tick_offset() - 100, 10), 5); // Test negative tick
+        assert!(is_valid_tick(constants::get_tick_offset(), 2), 5);
     }
 
     #[test]
     fun test_convert_to_real_tick() {
         // Test positive tick
-        let (abs_tick, is_positive) = convert_to_real_tick(TICK_OFFSET + 100);
+        let (abs_tick, is_positive) = convert_to_real_tick(constants::get_tick_offset() + 100);
         assert!(abs_tick == 100, 0);
         assert!(is_positive == true, 1);
 
         // Test negative tick
-        let (abs_tick, is_positive) = convert_to_real_tick(TICK_OFFSET - 100);
+        let (abs_tick, is_positive) = convert_to_real_tick(constants::get_tick_offset() - 100);
         assert!(abs_tick == 100, 2);
         assert!(is_positive == false, 3);
 
         // Test zero tick
-        let (abs_tick, is_positive) = convert_to_real_tick(TICK_OFFSET);
+        let (abs_tick, is_positive) = convert_to_real_tick(constants::get_tick_offset());
         assert!(abs_tick == 0, 4);
         assert!(is_positive == true, 5);
     }
@@ -377,14 +370,25 @@ module libs::tick_math {
     fun test_convert_from_real_tick() {
         // Test positive tick
         let offset_tick = convert_from_real_tick(100, true);
-        assert!(offset_tick == TICK_OFFSET + 100, 0);
+        assert!(offset_tick == constants::get_tick_offset() + 100, 0);
 
         // Test negative tick
         let offset_tick = convert_from_real_tick(100, false);
-        assert!(offset_tick == TICK_OFFSET - 100, 1);
+        assert!(offset_tick == constants::get_tick_offset() - 100, 1);
 
         // Test zero tick
         let offset_tick = convert_from_real_tick(0, true);
-        assert!(offset_tick == TICK_OFFSET, 2);
+        assert!(offset_tick == constants::get_tick_offset(), 2);
+    }
+
+    #[test]
+    fun test_tick_and_sqrt_price_combine() {
+        let tick = convert_from_real_tick(1000, true);
+        let sqrt_price = get_sqrt_price_at_tick(tick);
+
+        let tick2 = get_tick_at_sqrt_price(sqrt_price);
+        let (real_tick, is_positive) = convert_to_real_tick(tick2);
+        assert!(real_tick == 1000, 0);
+        assert!(is_positive == true, 1);
     }
 }
