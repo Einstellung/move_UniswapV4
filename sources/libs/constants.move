@@ -23,6 +23,10 @@ module libs::constants {
     const MIN_TICK: u32 = 0;     // Represents -887272 in original Solidity code
     const MAX_TICK: u32 = 1774544;  // Represents 887272 in original Solidity code
 
+    /// Constants for tick spacing
+    const MIN_TICK_SPACING: u32 = 1;
+    const MAX_TICK_SPACING: u32 = 32767;
+
     /// @notice the swap fee is represented in hundredths of a bip, so the max is 100%
     /// @dev the swap fee is the total fee on a swap, including both LP and Protocol fee
     const MAX_SWAP_FEE: u32 = 1000000; // 1e6
@@ -102,5 +106,13 @@ module libs::constants {
 
     public fun get_max_sqrt_price(): u256 {
         MAX_SQRT_PRICE
+    }
+
+    public fun get_min_tick_spacing(): u32 {
+        MIN_TICK_SPACING
+    }
+
+    public fun get_max_tick_spacing(): u32 {
+        MAX_TICK_SPACING
     }
 }

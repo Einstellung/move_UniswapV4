@@ -7,10 +7,6 @@ module libs::tick_math {
     const ERR_INVALID_TICK: u64 = 1;
     const ERR_INVALID_SQRT_PRICE: u64 = 2;
 
-    /// Constants for tick spacing
-    const MIN_TICK_SPACING: u32 = 1;
-    const MAX_TICK_SPACING: u32 = 32767;
-
     // Constants for price calculation
     const PRICE_CONST_1: u256 = 0xfffcb933bd6fad37aa2d162d1a594001u256;
     const PRICE_CONST_2: u256 = 0xfff97272373d413259a46990580e213au256;
@@ -34,12 +30,12 @@ module libs::tick_math {
     const PRICE_CONST_20: u256 = 0x48a170391f7dc42444e8fa2u256;
 
     /// @notice Given a tickSpacing, compute the maximum usable tick
-    public(package) fun max_usable_tick(tick_spacing: u32): u32 {
+    public fun max_usable_tick(tick_spacing: u32): u32 {
         (constants::get_max_tick() / tick_spacing) * tick_spacing
     }
 
     /// @notice Given a tickSpacing, compute the minimum usable tick
-    public(package) fun min_usable_tick(tick_spacing: u32): u32 {
+    public fun min_usable_tick(tick_spacing: u32): u32 {
         (constants::get_min_tick() / tick_spacing) * tick_spacing
     }
 
@@ -48,7 +44,7 @@ module libs::tick_math {
     /// @return (abs_real_tick, real_tick_signal) where:
     /// - abs_real_tick is the absolute value of the real tick
     /// - real_tick_signal is true for positive tick, false for negative tick
-    public(package) fun convert_to_real_tick(tick: u32): (u32, bool) {
+    public fun convert_to_real_tick(tick: u32): (u32, bool) {
         if (tick >= constants::get_tick_offset()) {
             (tick - constants::get_tick_offset(), true)  // Positive tick
         } else {
@@ -57,7 +53,7 @@ module libs::tick_math {
     }
 
     /// Convert a real tick to an offset tick (add offset)
-    public(package) fun convert_from_real_tick(abs_real_tick: u32, real_tick_signal: bool): u32 {
+    public fun convert_from_real_tick(abs_real_tick: u32, real_tick_signal: bool): u32 {
         if (real_tick_signal) {
             abs_real_tick + constants::get_tick_offset()
         } else {
